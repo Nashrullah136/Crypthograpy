@@ -5,17 +5,11 @@ import re
 
 def Encode(image, text):
     img = OpenImage(image)
-    format = "png"
     img = Normalize(img)
     bin_text = TextToBin(text)
     new_img = Embed(img, bin_text)
-    base_name = "result"
-    name = base_name + "." + format
-    i = 1
-    while os.path.isfile(name):
-        name = base_name + str(i) + "." + format
-        i += 1
-    new_img.save(name, format)
+    name = GetName()
+    new_img.save(name, "PNG")
     return name
 
 def Decode(image):
@@ -27,10 +21,30 @@ def Decode(image):
 def OpenImage(image):
     try:
         image = im.open(image)
+        image = image.convert("RGB")
     except:
         print("Can't open the image")
         sys.exit(1)
     return image
+
+def Normalize(img):
+    mask = 254
+    pixels = list(img.getdata())
+    i = 0
+    for pixel in pixels:
+        new_pixel = 0
+        if type(pixel) == int:
+            new_pixel = pixel & mask
+        elif type(pixel) == tuple:
+            temp = ()
+            for byte in pixel:
+                temp += (byte & mask, )
+            new_pixel = temp
+        pixels[i] = new_pixel
+        i += 1
+    new_img = im.new(img.mode, img.size)
+    new_img.putdata(pixels)
+    return new_img
 
 def TextToBin(text):
     result = ""
@@ -39,11 +53,6 @@ def TextToBin(text):
         binary = bin(letter)[2:]
         result += "0"*(8 - len(binary)) + binary
     return result
-
-def BinToText(bin_text):
-    text = ''.join(chr(int(bin_text[i*8:i*8+8], 2)) for i in range(len(bin_text)//8))
-    text = re.sub("\0", "", text)
-    return text
 
 def Embed(img, bin_text):
     i_text = 0
@@ -69,30 +78,21 @@ def Embed(img, bin_text):
     new_img = im.new(img.mode, img.size)
     new_img.putdata(pixels)
     return new_img
-    
-def Normalize(img):
-    mask = 254
-    pixels = list(img.getdata())
-    i = 0
-    for pixel in pixels:
-        new_pixel = 0
-        if type(pixel) == int:
-            new_pixel = pixel & mask
-        elif type(pixel) == tuple:
-            temp = ()
-            for byte in pixel:
-                temp += (byte & mask, )
-            new_pixel = temp
-        pixels[i] = new_pixel
+
+def GetName():
+    format = "png"
+    base_name = "result"
+    name = base_name + "." + format
+    i = 1
+    while os.path.isfile(name):
+        name = base_name + str(i) + "." + format
         i += 1
-    new_img = im.new(img.mode, img.size)
-    new_img.putdata(pixels)
-    return new_img
+    return name
+
 
 def Extract(img):
     mask = 1
     pixels = list(img.getdata())
-    # print(pixels)
     result = ""
     for pixel in pixels:
         data = ""
@@ -106,13 +106,18 @@ def Extract(img):
         result += data
     return result
 
+def BinToText(bin_text):
+    text = ''.join(chr(int(bin_text[i*8:i*8+8], 2)) for i in range(len(bin_text)//8))
+    text = re.sub("\0", "", text)
+    return text
+
 if __name__ == "__main__":
     uinput = input("encode or decode [e, d]?")
     if uinput.lower() == "e":
         image = input("image path : ")
         text = input("message to encode : ")
         file = Encode(image, text)
-        print("File Output {file}")
+        print("File Output {}".format(file))
     elif uinput.lower() == "d":
         image = input("image path : ")
         print(Decode(image))
